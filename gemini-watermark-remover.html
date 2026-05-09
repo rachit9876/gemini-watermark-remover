@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Watermark Remover (Bulk)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f9fafb;
+            --container-bg: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --accent-color: #000000;
+            --accent-hover: #374151;
+            --dropzone-bg: #f3f4f6;
+            --dropzone-hover: #e5e7eb;
+            --dropzone-border: #d1d5db;
+            --dropzone-active: #9ca3af;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--container-bg);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        p.subtitle {
+            margin: 0 0 30px 0;
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--dropzone-border);
+            border-radius: 12px;
+            padding: 50px 20px;
+            background: var(--dropzone-bg);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .dropzone:hover {
+            background: var(--dropzone-hover);
+            border-color: var(--dropzone-active);
+        }
+
+        .dropzone.drag {
+            border-color: var(--accent-color);
+            background: #f3f4f6;
+            transform: scale(1.02);
+        }
+
+        .dropzone svg {
+            width: 48px;
+            height: 48px;
+            color: var(--text-muted);
+        }
+
+        .dropzone h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .dropzone p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+        }
+
+        button:disabled {
+            background: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        #downloadAllBtn {
+            display: none;
+            background: var(--success-color);
+        }
+
+        #downloadAllBtn:hover {
+            background: #059669;
+        }
+
+        .gallery {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .card canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        .card .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card .filename {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .card .status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .card .card-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 8px;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Watermark Remover</h1>
+        <p class="subtitle">Upload multiple images to seamlessly remove AI watermarks in bulk.</p>
+
+        <div id="dropzone" class="dropzone">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+            </svg>
+            <h2>Click to upload or drag & drop</h2>
+            <p>Select multiple PNGs or JPGs</p>
+            <input id="fileInput" type="file" accept="image/*" multiple hidden>
+        </div>
+
+        <div class="actions">
+            <button id="clearBtn" style="display:none;" onclick="clearGallery()">Clear Gallery</button>
+            <button id="downloadAllBtn" onclick="downloadAllAsZip()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download All (ZIP)
+            </button>
+        </div>
+
+        <div id="gallery" class="gallery"></div>
+    </div>
+
+    <script>
+        const WM48 = "https://dr-fast-upload.pages.dev/public/4afc99afe0ef.png";
+        const WM96 = "https://dr-fast-upload.pages.dev/public/3e26f2233a12.png";
+
+        const SCALE_FACTORS = [
+            0.5, .625, .667, .75, .8, .875,
+            1.125, 1.25, 1.333, 1.5,
+            1.667, 1.75, 1.875, 2,
+            2.25, 2.5, 2.75, 3
+        ];
+
+        const dropzone = document.getElementById("dropzone");
+        const fileInput = document.getElementById("fileInput");
+        const gallery = document.getElementById("gallery");
+        const downloadAllBtn = document.getElementById("downloadAllBtn");
+        const clearBtn = document.getElementById("clearBtn");
+
+        let processedFilesData = {}; // Stores { "filename.png": "data:image/png;base64,..." }
+
+        // --- Event Listeners ---
+        dropzone.onclick = () => fileInput.click();
+
+        fileInput.onchange = e => {
+            const files = Array.from(e.target.files);
+            if(files.length > 0) handleFiles(files);
+            fileInput.value = ""; // reset input
+        };
+
+        dropzone.addEventListener("dragover", e => {
+            e.preventDefault();
+            dropzone.classList.add("drag");
+        });
+
+        dropzone.addEventListener("dragleave", () => {
+            dropzone.classList.remove("drag");
+        });
+
+        dropzone.addEventListener("drop", async e => {
+            e.preventDefault();
+            dropzone.classList.remove("drag");
+
+            const files = Array.from(e.dataTransfer.files);
+            if(files.length > 0){
+                handleFiles(files);
+                return;
+            }
+
+            const html = e.dataTransfer.getData("text/html");
+            if (html) {
+                const match = html.match(/src=["']([^"']+)["']/i);
+                if(match) {
+                    processRemoteImage(match[1]);
+                }
+            }
+        });
+
+        // --- Core Logic ---
+        function clearGallery() {
+            gallery.innerHTML = "";
+            processedFilesData = {};
+            downloadAllBtn.style.display = "none";
+            clearBtn.style.display = "none";
+        }
+
+        function handleFiles(files) {
+            clearBtn.style.display = "block";
+            files.forEach(file => {
+                createWorkspaceCard(file);
+            });
+        }
+
+        async function processRemoteImage(url){
+            clearBtn.style.display = "block";
+            try{
+                const proxy = "https://corsproxy.io/?";
+                const res = await fetch(proxy + encodeURIComponent(url));
+                if (!res.ok) throw new Error("Network error");
+                
+                const blob = await res.blob();
+                // Assign a generic filename for remote drops
+                const file = new File([blob], `remote_image_${Date.now()}.png`, { type: blob.type });
+                createWorkspaceCard(file);
+            }catch(err){
+                console.error("CORS/Remote fetch failed:", err);
+                alert("Could not load remote image. CORS policy might block it.");
+            }
+        }
+
+        function createWorkspaceCard(file) {
+            // Create UI elements
+            const card = document.createElement("div");
+            card.className = "card";
+
+            const header = document.createElement("div");
+            header.className = "header";
+
+            const nameEl = document.createElement("div");
+            nameEl.className = "filename";
+            nameEl.textContent = file.name;
+
+            const statusEl = document.createElement("div");
+            statusEl.className = "status";
+            statusEl.textContent = "Loading...";
+
+            const canvas = document.createElement("canvas");
+            const btn = document.createElement("button");
+            btn.className = "card-btn";
+            btn.textContent = "Download Single";
+
+            // Assemble Card
+            header.appendChild(nameEl);
+            header.appendChild(statusEl);
+            card.appendChild(header);
+            card.appendChild(canvas);
+            card.appendChild(btn);
+            gallery.appendChild(card);
+
+            // Start processing this specific file
+            const reader = new FileReader();
+            reader.onload = async e => {
+                await processImagePipeline(e.target.result, file.name, canvas, statusEl, btn);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function downloadAllAsZip() {
+            const zip = new JSZip();
+            const filenames = Object.keys(processedFilesData);
+            
+            if(filenames.length === 0) return;
+            
+            downloadAllBtn.disabled = true;
+            downloadAllBtn.innerHTML = "Zipping...";
+
+            filenames.forEach(name => {
+                const dataUrl = processedFilesData[name];
+                // Strip the metadata prefix to get raw base64
+                const base64Data = dataUrl.split(',')[1];
+                zip.file("clean_" + name, base64Data, {base64: true});
+            });
+
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = "Cleaned_Images.zip";
+                a.click();
+                
+                downloadAllBtn.disabled = false;
+                downloadAllBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg> Download All (ZIP)`;
+            });
+        }
+
+        // --- Math / Image Processing ---
+        async function loadImage(src){
+            return new Promise((resolve,reject)=>{
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = ()=>resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+
+        function imageToAlphaMap(imageData){
+            const {width,height,data} = imageData;
+            const arr = new Float32Array(width*height);
+            for(let i=0;i<arr.length;i++){
+                const idx = i*4;
+                const v = Math.max(data[idx], data[idx+1], data[idx+2]);
+                arr[i] = v/255;
+            }
+            return arr;
+        }
+
+        function correlation(imgData,x,y,size,alphaMap){
+            const {width,height,data} = imgData;
+            if(x<0 || y<0 || x+size>width || y+size>height) return -1;
+
+            const len = size*size;
+            const sample = new Float32Array(len);
+
+            for(let yy=0;yy<size;yy++){
+                for(let xx=0;xx<size;xx++){
+                    const idx = ((y+yy)*width + (x+xx))*4;
+                    sample[yy*size+xx] = Math.max(data[idx], data[idx+1], data[idx+2]);
+                }
+            }
+
+            let darkSum=0, darkCount=0;
+            for(let i=0;i<len;i++){
+                if(alphaMap[i] < 0.02){
+                    darkSum += sample[i];
+                    darkCount++;
+                }
+            }
+
+            if(darkCount < 10) return -1;
+
+            const baseline = darkSum/darkCount;
+            const centered = new Float32Array(len);
+
+            for(let i=0;i<len;i++){ centered[i] = sample[i]-baseline; }
+
+            let meanA=0, meanB=0;
+            for(let i=0;i<len;i++){
+                meanA += alphaMap[i];
+                meanB += centered[i];
+            }
+            meanA /= len;
+            meanB /= len;
+
+            let numerator=0, denomA=0, denomB=0;
+            for(let i=0;i<len;i++){
+                const a = alphaMap[i]-meanA;
+                const b = centered[i]-meanB;
+                numerator += a*b;
+                denomA += a*a;
+                denomB += b*b;
+            }
+
+            const denom = Math.sqrt(denomA*denomB);
+            return denom > 0 ? numerator/denom : 0;
+        }
+
+        async function processImagePipeline(src, filename, canvas, statusEl, btn) {
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            
+            try {
+                statusEl.textContent = "Scanning...";
+
+                const [img, wm48, wm96] = await Promise.all([
+                    loadImage(src),
+                    loadImage(WM48),
+                    loadImage(WM96)
+                ]);
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+                canvas.style.display = "block";
+                ctx.drawImage(img,0,0);
+
+                const imageData = ctx.getImageData(0,0, canvas.width, canvas.height);
+                const templates = [
+                    { img: wm96, baseSize:96, baseMargin:64 },
+                    { img: wm48, baseSize:48, baseMargin:32 }
+                ];
+
+                const tempCanvas = document.createElement("canvas");
+                const tempCtx = tempCanvas.getContext("2d");
+                let best = null;
+
+                function check(template,size,margin){
+                    const x = canvas.width - margin - size;
+                    const y = canvas.height - margin - size;
+                    if(x<0 || y<0) return;
+
+                    tempCanvas.width = size;
+                    tempCanvas.height = size;
+                    tempCtx.clearRect(0,0,size,size);
+                    tempCtx.drawImage(template,0,0,size,size);
+
+                    const alphaMap = imageToAlphaMap(tempCtx.getImageData(0,0,size,size));
+                    const score = correlation(imageData, x, y, size, alphaMap);
+
+                    if(score > (best?.score || -999)){
+                        best = { x, y, size, alphaMap, score };
+                    }
+                }
+
+                // Give UI a moment to breathe before heavy sync work
+                await new Promise(r => setTimeout(r, 10)); 
+
+                for(const t of templates){
+                    check(t.img, t.baseSize, t.baseMargin);
+                    for(const s of SCALE_FACTORS){
+                        check(t.img, Math.round(t.baseSize*s), Math.round(t.baseMargin*s));
+                    }
+                }
+
+                if(!best || best.score < 0.25){
+                    statusEl.textContent = "No WM found";
+                    statusEl.style.color = "var(--text-muted)";
+                    
+                    // Even if no watermark is found, add to download bundle as untouched
+                    const dataUrl = canvas.toDataURL("image/png");
+                    processedFilesData[filename] = dataUrl;
+                    setupIndividualDownload(btn, dataUrl, filename);
+                    checkMasterDownload();
+                    return;
+                }
+
+                statusEl.textContent = "Cleaning...";
+                await new Promise(r => setTimeout(r, 10));
+
+                const data = imageData.data;
+                for(let yy=0;yy<best.size;yy++){
+                    for(let xx=0;xx<best.size;xx++){
+                        const px = best.x + xx;
+                        const py = best.y + yy;
+                        const alpha = Math.min(best.alphaMap[yy*best.size+xx], 0.99);
+
+                        if(alpha < 0.002) continue;
+
+                        const idx = (py*canvas.width+px)*4;
+                        const inv = 1-alpha;
+
+                        for(let c=0;c<3;c++){
+                            const restored = (data[idx+c]-255*alpha) / inv;
+                            data[idx+c] = Math.max(0, Math.min(255, Math.round(restored)));
+                        }
+                    }
+                }
+
+                ctx.putImageData(imageData,0,0);
+                
+                const finalDataUrl = canvas.toDataURL("image/png");
+                processedFilesData[filename] = finalDataUrl;
+                
+                statusEl.textContent = "Done";
+                statusEl.style.color = "var(--success-color)";
+                
+                setupIndividualDownload(btn, finalDataUrl, filename);
+                checkMasterDownload();
+
+            } catch(err) {
+                console.error(err);
+                statusEl.textContent = "Error";
+                statusEl.style.color = "red";
+            }
+        }
+
+        function setupIndividualDownload(btn, dataUrl, originalFilename) {
+            btn.style.display = "flex";
+            btn.onclick = () => {
+                const a = document.createElement("a");
+                a.href = dataUrl;
+                a.download = "clean_" + originalFilename;
+                a.click();
+            };
+        }
+
+        function checkMasterDownload() {
+            if (Object.keys(processedFilesData).length > 1) {
+                downloadAllBtn.style.display = "flex";
+            }
+        }
+    </script>
+</body>
+</html>
