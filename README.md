@@ -6,6 +6,8 @@ You can find the snapshot for that date on archive.ph or the [Wayback Machine](h
 
 ## Reverse Engineering Method
 
+Try the Cloned one : [rachit9876.github.io/gemini-watermark-remover/](https://rachit9876.github.io/gemini-watermark-remover/)
+
 I would like to highlight the specific JavaScript chunk: [`08tipuo3xapm9.js`](https://www.gradually.ai/_next/static/chunks/08tipuo3xapm9.js?dpl=dpl_3VVxmETkXkj9KFtymAAnCERJkQPU).
 
 To extract the relevant logic, open the console on [gradually.ai](https://www.gradually.ai/en/gemini-watermark-remover/) and run the following snippet:
