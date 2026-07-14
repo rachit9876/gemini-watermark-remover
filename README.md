@@ -1,4 +1,5 @@
-# Gemini Watermark Remover
+# Gemini Watermark Remover 
+> ## Currently under maintenance as recent site updates have broken the existing functionality
 
 I reverse-engineered the site [gradually.ai/gemini-watermark-remover](https://www.gradually.ai/en/gemini-watermark-remover/) as of May 9, 2026.
 
